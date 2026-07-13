@@ -317,7 +317,7 @@
         const name=countersConfig[id], color=CCOLORS[i%CCOLORS.length], cd=countersData[id]||{}, busy=cd.status==='busy'&&cd.number>0, stopped=cd.status==='stopped';
         let stateClass='idle', statusText='فارغ', bigNum='-', labelText='فارغ';
         if(busy){ stateClass='busy'; statusText='جاري الخدمة'; bigNum=cd.number; labelText='رقم '+cd.number; }
-        else if(stopped){ stateClass='stopped'; statusText='متوقف'; bigNum='&#10004;'; labelText='متوقف'; }
+        else if(stopped){ stateClass='stopped'; statusText='متوقف'; bigNum='&#128683;'; labelText='متوقف'; }
         h+=`<div class="cc ${stateClass}"><div class="cc-info"><div class="cc-name" style="color:${busy?color:stopped?'#e74c3c':'var(--secondary)'};">${name}</div><div class="cc-status">${statusText}</div></div><div class="cc-num"><div class="cc-big" style="${busy?'color:'+color+';text-shadow:0 0 15px '+color+'55;':stopped?'color:#e74c3c;text-shadow:0 0 15px rgba(231,76,60,0.3);':''}">${bigNum}</div><div class="cc-label" style="${busy?'color:'+color+'88;':stopped?'color:rgba(231,76,60,0.5);':''}">${labelText}</div></div></div>`;
       });
       document.getElementById('sidebar').innerHTML=h;
