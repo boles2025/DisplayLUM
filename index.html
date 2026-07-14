@@ -111,10 +111,6 @@
     .cc.busy .cc-label { color:rgba(var(--primary-rgb),0.4); }
 
     .center { flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1rem 2rem;position:relative;overflow:visible; }
-    .idle-msg { text-align:center;color:var(--dim);position:relative;z-index:1; }
-    .idle-msg .ic { font-size:5rem;margin-bottom:1rem;opacity:0.12;animation:idleFloat 4s ease-in-out infinite; }
-    .idle-msg .tx { font-size:2rem;font-weight:700; }
-    @keyframes idleFloat { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-15px) scale(1.05)} }
 
     .active-call { display:none;text-align:center;width:100%;animation:fadeIn 0.4s ease;position:relative;z-index:1; }
     .active-call.show { display:block; }
@@ -228,10 +224,6 @@
   <div class="body">
     <div class="sidebar" id="sidebar"></div>
     <div class="center">
-      <div class="idle-msg" id="idleMsg">
-        <div class="ic">&#128203;</div>
-        <div class="tx">بانتظار أول رقم</div>
-      </div>
       <div class="active-call" id="activeCall">
         <div class="ac-student-section">
           <div class="ac-label">&#9733; رقم الطالب</div>
@@ -318,18 +310,30 @@
         let stateClass='idle', statusText='فارغ', bigNum='-', labelText='فارغ';
         if(busy){ stateClass='busy'; statusText='جاري الخدمة'; bigNum=cd.number; labelText='رقم '+cd.number; }
         else if(stopped){ stateClass='stopped'; statusText='متوقف'; bigNum='&#128683;'; labelText='متوقف'; }
-        h+=`<div class="cc ${stateClass}"><div class="cc-info"><div class="cc-name" style="color:${busy?color:stopped?'#e74c3c':'var(--secondary)'};">${name}</div><div class="cc-status">${statusText}</div></div><div class="cc-num"><div class="cc-big" style="${busy?'color:'+color+';text-shadow:0 0 15px '+color+'55;':stopped?'color:#e74c3c;text-shadow:0 0 15px rgba(231,76,60,0.3);':''}">${bigNum}</div><div class="cc-label" style="${busy?'color:'+color+'88;':stopped?'color:rgba(231,76,60,0.5);':''}">${labelText}</div></div></div>`;
+        h+=`<div class="cc ${stateClass}"><div class="cc-info"><div class="cc-name" style="color:${busy?color:stopped?'#e74c3c':'var(--secondary)'};">${name}</div><div class="cc-status">${statusText}</div></div><div class="cc-num"><div class="cc-big" style="${busy?'color:'+color+';':stopped?'color:#e74c3c;':''}">${bigNum}</div><div class="cc-label" style="${busy?'color:'+color+'88;':stopped?'color:rgba(231,76,60,0.5);':''}">${labelText}</div></div></div>`;
       });
       document.getElementById('sidebar').innerHTML=h;
     }
 
-    db.ref('counters').on('value', snap => { countersData=snap.val()||{}; renderSidebar(); });
+    function clearDisplay() {
+      const ac=document.getElementById('activeCall');
+      ac.classList.remove('show');
+      document.getElementById('acNum').textContent='--';
+      document.getElementById('acCounter').textContent='--';
+    }
+
+    db.ref('counters').on('value', snap => {
+      countersData=snap.val()||{};
+      renderSidebar();
+      const vals=Object.values(countersData);
+      const allIdle=vals.every(c=>!c||c.status!=='busy'||!c.number);
+      if(allIdle&&document.getElementById('activeCall').classList.contains('show')){ clearDisplay(); }
+    });
 
     db.ref('currentCall').on('value', snap => {
       const data=snap.val();
-      if(!data||!data.number||data.number===0){ document.getElementById('idleMsg').style.display='block'; document.getElementById('activeCall').classList.remove('show'); return; }
+      if(!data||!data.number||data.number===0){ clearDisplay(); return; }
       if(data.timestamp===lastTS) return; lastTS=data.timestamp;
-      document.getElementById('idleMsg').style.display='none';
       const ac=document.getElementById('activeCall'),an=document.getElementById('acNum'),acn=document.getElementById('acCounter'),acCnum=document.getElementById('acCounter').parentElement,acName=document.getElementById('acCounterName'),acLabel=document.getElementById('acClabel');
       ac.classList.add('show'); an.classList.remove('animate'); acCnum.classList.remove('animate'); void an.offsetWidth;
       an.classList.add('animate'); acCnum.classList.add('animate');
@@ -344,13 +348,24 @@
       if(data.timestamp!==lastPlayTS){ lastPlayTS=data.timestamp; playBeep(); }
     });
 
-    function playBeep() { try{const ctx=new(window.AudioContext||window.webkitAudioContext)();if(ctx.state==='suspended')ctx.resume();const now=ctx.currentTime;[{freq:880,start:0,dur:0.3,vol:0.6},{freq:1100,start:0.35,dur:0.3,vol:0.7},{freq:1320,start:0.7,dur:0.35,vol:0.8}].forEach(t=>{const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=t.freq;o.type='sine';g.gain.setValueAtTime(t.vol,now+t.start);g.gain.exponentialRampToValueAtTime(0.01,now+t.start+t.dur);o.start(now+t.start);o.stop(now+t.start+t.dur)});}catch(e){} }
-    document.addEventListener('click',function(){try{const c=new(window.AudioContext||window.webkitAudioContext)();if(c.state==='suspended')c.resume();}catch(e){}},{once:true});
+    let audioCtx=null;
+    function getAudioCtx(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume();return audioCtx;}
+    function playBeep(){try{const ctx=getAudioCtx(),now=ctx.currentTime;[{freq:880,start:0,dur:0.3,vol:0.6},{freq:1100,start:0.35,dur:0.3,vol:0.7},{freq:1320,start:0.7,dur:0.35,vol:0.8}].forEach(t=>{const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=t.freq;o.type='sine';g.gain.setValueAtTime(t.vol,now+t.start);g.gain.exponentialRampToValueAtTime(0.01,now+t.start+t.dur);o.start(now+t.start);o.stop(now+t.start+t.dur)});}catch(e){}}
 
-    function goFS(){if(!document.fullscreenElement)document.documentElement.requestFullscreen().catch(()=>{});else document.exitFullscreen();}
+    function goFS(){
+      const el=document.documentElement;
+      if(!document.fullscreenElement&&!document.webkitFullscreenElement){
+        if(el.requestFullscreen)el.requestFullscreen().catch(()=>{});
+        else if(el.webkitRequestFullscreen)el.webkitRequestFullscreen();
+        else if(el.msRequestFullscreen)el.msRequestFullscreen();
+      }
+    }
+    function tryFS(){if(!document.fullscreenElement)goFS();}
     document.addEventListener('keydown',e=>{if(e.key==='F11'){e.preventDefault();goFS();}});
-    document.addEventListener('click',function(){if(!document.fullscreenElement)document.documentElement.requestFullscreen().catch(()=>{});},{once:true});
-    try{document.documentElement.requestFullscreen();}catch(e){}
+    document.addEventListener('click',tryFS);
+    document.addEventListener('touchstart',tryFS);
+    goFS();
+    getAudioCtx();
   </script>
 </body>
 </html>
