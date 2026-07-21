@@ -211,8 +211,7 @@
     /* LAYOUT: wide */
     body.layout-wide .sidebar { width:380px; }
     body.layout-wide .center { flex-direction:row; align-items: center; justify-content:center; gap:2.5rem; padding:1.5rem 2rem; overflow:hidden; }
-    body.layout-wide .active-call { display:flex !important; align-items:center; justify-content:center; gap:2.5rem; }
-    body.layout-wide .active-call.hide-wide { display:none !important; }
+    body.layout-wide .active-call.show { display:flex; align-items:center; justify-content:center; gap:2.5rem; }
     body.layout-wide .ac-student-section { margin-bottom:0; text-align:center; }
     body.layout-wide .ac-number-wrap { width:clamp(16rem, 30vh, 24rem);height:clamp(16rem, 30vh, 24rem); }
     body.layout-wide .ac-label { font-size:clamp(1.6rem, 3.2vh, 2.5rem); }
@@ -413,6 +412,13 @@
       const data=snap.val();
       if(!data||!data.number||data.number===0){
         displayQueue=[];
+        if(displayTimer){
+          clearTimeout(displayTimer);
+          displayTimer=null;
+        }
+        clearDisplay();
+        lastDisplayNum = 0;
+        lastDisplayCounter = '';
         return;
       }
       if(data.number===lastDisplayNum && data.counter===lastDisplayCounter) return;
